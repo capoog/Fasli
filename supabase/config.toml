@@ -1,0 +1,32 @@
+# Supabase project settings for local development (`supabase start`).
+# For the hosted project, run `supabase link --project-ref <your-ref>` and deploy with `supabase db push` / `supabase functions deploy`.
+project_id = "fasli"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["fasli://", "http://localhost:8081"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "20MiB"
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"

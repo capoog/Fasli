@@ -39,3 +39,13 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Fasli project notes
+
+- Routes live in `src/app/`. Everything behind sign-in is under `src/app/(app)/`, whose layout waits for the profile. Role-specific tabs are in `(app)/(tabs)/_layout.tsx`.
+- UI text goes through `useT()` in `src/lib/i18n.tsx` (Arabic + English). Add every new string to `dict` in both languages; `t()` is typed so missing keys fail typecheck.
+- Right-to-left: the app does not force native RTL. Use `Row` (flips automatically) and `Txt` from `src/components/ui.tsx` instead of raw `View`/`Text` rows.
+- Database: `supabase/migrations/`. Every table has RLS. Never `select('*')` on `profiles` or `schools` — secret columns are not granted; list columns explicitly.
+- Exam answer keys live in `question_keys` (teacher-only). Objective marking happens in the `submit_exam()` SQL function; written answers are marked by the `ai-grade` Edge Function.
+- AI calls go through `supabase/functions/_shared/ai.ts` (Gemini or Claude via the `AI_PROVIDER` secret). Never call an AI provider from the app directly.
+- Before finishing a change: `npm run typecheck` and `npm run build:web`.

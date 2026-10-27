@@ -1,25 +1,64 @@
 {
   "expo": {
-    "name": "fasli",
+    "name": "Fasli",
     "slug": "fasli",
     "version": "1.0.0",
+    "scheme": "fasli",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F2F4F8",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1D5C8C"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.fasli.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fasli uses the camera for live classes and to photograph book pages.",
+        "NSMicrophoneUsageDescription": "Fasli uses the microphone for live classes.",
+        "NSPhotoLibraryUsageDescription": "Fasli lets teachers upload photos of book pages.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "app.fasli.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1D5C8C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Fasli · فصلي",
+      "themeColor": "#1D5C8C",
+      "backgroundColor": "#F2F4F8"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-localization",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fasli lets teachers upload photos of book pages.",
+          "cameraPermission": "Fasli lets teachers photograph book pages."
+        }
+      ]
+    ]
   }
 }
