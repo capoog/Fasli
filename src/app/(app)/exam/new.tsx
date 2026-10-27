@@ -96,6 +96,8 @@ export default function ExamBuilder() {
         p_questions: qs.map((q) => ({ type: q.type, prompt: q.prompt, options: q.options ?? [], rubric: q.rubric ?? [], points: q.points, tag: q.tag ?? '', answer: q.answer })),
       });
       if (e) throw e;
+      // Editing saves a fresh copy, so remove the old draft.
+      if (examId) await supabase.from('exams').delete().eq('id', examId);
       toast(publish ? t('examPublished') : t('examSaved'));
       router.replace(`/exam/${id}`);
     } catch (e) { setError(errMsg(e)); } finally { setBusy(null); }

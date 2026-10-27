@@ -14,7 +14,7 @@ create type public.material_kind as enum ('pdf', 'image', 'text', 'note');
 create type public.session_status as enum ('scheduled', 'live', 'ended');
 
 create or replace function public.short_code(len int default 6)
-returns text language sql volatile as $$
+returns text language sql volatile set search_path = public as $$
   select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + floor(random() * 32)::int, 1), '')
   from generate_series(1, len)
 $$;
@@ -309,20 +309,16 @@ end $$;
 
 -- ───────────────────────── Exam RPCs ─────────────────────────
 -- Teacher saves a whole exam (questions + keys) in one call.
+-- Editing a draft saves a new copy; the app then removes the old draft (teachers may remove their own exams).
 create or replace function public.save_exam(p_exam_id uuid, p_class_id uuid, p_title text, p_duration int, p_publish boolean, p_questions jsonb)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare eid uuid; q jsonb; qid uuid; i int := 0;
 begin
   if not teaches(p_class_id) then raise exception 'not your class'; end if;
-  if p_exam_id is null then
-    insert into exams (class_id, title, duration_min, created_by) values (p_class_id, p_title, p_duration, auth.uid()) returning id into eid;
-  else
-    select id into eid from exams where id = p_exam_id and class_id = p_class_id;
-    if eid is null then raise exception 'exam not found'; end if;
-    if exists (select 1 from submissions where exam_id = eid) then raise exception 'exam already has submissions'; end if;
-    update exams set title = p_title, duration_min = p_duration where id = eid;
-    delete from questions where exam_id = eid;
+  if p_exam_id is not null and exists (select 1 from submissions where exam_id = p_exam_id) then
+    raise exception 'exam already has submissions';
   end if;
+  insert into exams (class_id, title, duration_min, created_by) values (p_class_id, p_title, p_duration, auth.uid()) returning id into eid;
   for q in select * from jsonb_array_elements(p_questions) loop
     insert into questions (exam_id, position, type, prompt, options, rubric, points, tag)
     values (eid, i, (q->>'type')::question_type, q->>'prompt', coalesce(q->'options', '[]'), coalesce(q->'rubric', '[]'),
@@ -464,7 +460,7 @@ create policy "classes visible in school" on public.classes for select using (sc
 create policy "teachers create classes" on public.classes for insert
   with check (teacher_id = auth.uid() and school_id = public.my_school() and public.my_role() = 'teacher');
 create policy "teacher or admin edits class" on public.classes for update using (teacher_id = auth.uid() or public.admin_of_class(id));
-create policy "teacher or admin deletes class" on public.classes for delete using (teacher_id = auth.uid() or public.admin_of_class(id));
+create policy "teacher or admin removes class" on public.classes for delete using (teacher_id = auth.uid() or public.admin_of_class(id));
 
 create policy "members visible" on public.class_members for select
   using (student_id = auth.uid() or public.teaches(class_id) or public.parent_of(student_id) or public.admin_of_class(class_id));
@@ -487,7 +483,7 @@ create policy "exams visible" on public.exams for select
   using (public.teaches(class_id) or public.admin_of_class(class_id)
          or ((public.in_class(class_id) or public.child_in_class(class_id)) and status in ('published', 'closed')));
 create policy "teacher updates exams" on public.exams for update using (public.teaches(class_id)) with check (public.teaches(class_id));
-create policy "teacher deletes exams" on public.exams for delete using (public.teaches(class_id));
+create policy "teacher removes exams" on public.exams for delete using (public.teaches(class_id));
 
 create policy "questions visible" on public.questions for select
   using (public.teaches(public.class_of_exam(exam_id))
@@ -552,10 +548,25 @@ create policy "class reads materials" on storage.objects for select
   using (bucket_id = 'materials' and public.can_see_class(((storage.foldername(name))[1])::uuid));
 create policy "teacher uploads materials" on storage.objects for insert
   with check (bucket_id = 'materials' and public.teaches(((storage.foldername(name))[1])::uuid));
-create policy "teacher deletes materials" on storage.objects for delete
+create policy "teacher removes materials" on storage.objects for delete
   using (bucket_id = 'materials' and public.teaches(((storage.foldername(name))[1])::uuid));
 
 -- ───────────────────────── Realtime ─────────────────────────
 alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.submissions;
 alter publication supabase_realtime add table public.live_sessions;
+
+-- ───────────────────────── Function permissions ─────────────────────────
+-- Signed-out visitors can call nothing; the sign-up trigger function is not callable directly.
+revoke execute on all functions in schema public from anon, public;
+revoke execute on function public.handle_new_user() from authenticated;
+grant execute on function
+  public.my_role(), public.my_school(), public.teaches(uuid), public.in_class(uuid), public.parent_of(uuid),
+  public.child_in_class(uuid), public.admin_of_class(uuid), public.class_of_exam(uuid), public.exam_open(uuid),
+  public.can_see_class(uuid), public.short_code(int),
+  public.create_school(text, text), public.join_school(text, public.user_role, text), public.join_class(text),
+  public.link_child(text), public.save_exam(uuid, uuid, text, int, boolean, jsonb), public.start_exam(uuid),
+  public.submit_exam(uuid, jsonb), public.review_answer(uuid, uuid, jsonb), public.approve_submission(uuid, boolean),
+  public.result_keys(uuid), public.school_stats(), public.school_codes(), public.my_link_code(), public.regenerate_codes()
+to authenticated;
+alter default privileges in schema public revoke execute on functions from anon, public;
