@@ -11,7 +11,7 @@ type Token = { token: string; url: string; room: string; role: 'teacher' | 'stud
 
 export default function Live() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t } = useT();
+  const { t, rtl } = useT();
   const router = useRouter();
   const toast = useToast();
   const [notes, setNotes] = useState('');
@@ -38,7 +38,7 @@ export default function Live() {
       ) : data ? (
         <>
           <View style={{ height: 560 }}>
-            <LiveRoom token={data.token} serverUrl={data.url} onLeave={() => (data.role === 'teacher' ? null : router.back())} />
+            <LiveRoom rtl={rtl} token={data.token} serverUrl={data.url} onLeave={() => (data.role === 'teacher' ? null : router.back())} />
           </View>
           {data.role === 'teacher' && (
             <Card>
