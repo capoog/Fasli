@@ -268,7 +268,7 @@ end $$;
 -- Teachers join with the staff code; students and parents with the student code.
 create or replace function public.join_school(code text, as_role public.user_role, person_name text)
 returns uuid language plpgsql security definer set search_path = public as $$
-declare sid uuid;
+declare sid uuid; cid uuid; c text := upper(trim(code));
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
   if as_role = 'admin' then raise exception 'admins create a school'; end if;
@@ -276,12 +276,19 @@ begin
     raise exception 'already in a school';
   end if;
   if as_role = 'teacher' then
-    select id into sid from schools where staff_code = upper(trim(code));
+    select id into sid from schools where staff_code = c;
   else
-    select id into sid from schools where student_code = upper(trim(code));
+    select id into sid from schools where student_code = c;
+    -- A student may also start with a class code: join that class's school and the class itself.
+    if sid is null and as_role = 'student' then
+      select id, school_id into cid, sid from classes where join_code = c;
+    end if;
   end if;
   if sid is null then raise exception 'invalid code'; end if;
   update profiles set role = as_role, school_id = sid, full_name = trim(person_name) where id = auth.uid();
+  if cid is not null then
+    insert into class_members (class_id, student_id) values (cid, auth.uid()) on conflict do nothing;
+  end if;
   return sid;
 end $$;
 

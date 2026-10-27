@@ -16,7 +16,7 @@ export default function Live() {
   const toast = useToast();
   const [notes, setNotes] = useState('');
   const [ending, setEnding] = useState(false);
-  const { data, error, loading, reload } = useData(() => callFn<Token>('livekit-token', { session_id: id }), [id]);
+  const { data, error, loading, reload } = useData(() => callFn<Token>('livekit-token', { session_id: id }), [id], { refetchOnFocus: false });
 
   if (loading && !data) return <Loading />;
 
